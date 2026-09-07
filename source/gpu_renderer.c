@@ -98,30 +98,17 @@ int dnf_gpu_init(void) {
   scePowerSetGpuXbarClockFrequency(166);
 
 #ifdef VITA
-  // Niente framebuffer software: vitaGL crea i color buffer in VRAM.
+  // M0.1: fixed-function pipeline (come i sample ufficiali vitaGL).
+  // Niente shader custom: lo shader P8/LUT torna in M1, prima proviamo
+  // che un triangolo arrivi al display.
   vglInitExtended(0, DNF_FB_W, DNF_FB_H, 16 * 1024 * 1024, 0);
   vglWaitVblankStart(1); // vsync GPU: present agganciato a 60Hz
-
-  GLuint vs = compile_shader(0x8B31 /*GL_VERTEX_SHADER*/, K_VS);
-  GLuint fs = compile_shader(0x8B30 /*GL_FRAGMENT_SHADER*/, K_FS);
-  g_prog = glCreateProgram();
-  glAttachShader(g_prog, vs);
-  glAttachShader(g_prog, fs);
-  glBindAttribLocation(g_prog, 0, "a_pos");
-  glBindAttribLocation(g_prog, 1, "a_uv");
-  glBindAttribLocation(g_prog, 2, "a_light");
-  glLinkProgram(g_prog);
-  glUseProgram(g_prog);
-
-  glGenTextures(1, &g_lut_tex);
-  glBindTexture(GL_TEXTURE_2D, g_lut_tex);
-  glTexParameteri(GL_TEXTURE_2D, 0x2800 /*MAG*/, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, 0x2801 /*MIN*/, GL_NEAREST);
-
-  glEnable(GL_DEPTH_TEST);
-  glEnable(GL_CULL_FACE);
-  glDisable(GL_BLEND);
   glViewport(0, 0, DNF_FB_W, DNF_FB_H);
+  glDisable(0x0B71 /*DEPTH_TEST*/);
+  glDisable(0x0B44 /*CULL_FACE*/);
+  glDisable(0x0BE2 /*BLEND*/);
+  glEnable(0x0DE1 /*TEXTURE_2D*/);
+  glClearColor(0.1f, 0.2f, 0.8f, 1.0f); // BLU: se vedi blu la GPU presenta
 #endif
   g_batch_quads = 0;
   return 0;
@@ -137,11 +124,15 @@ void dnf_gpu_begin_frame(float yaw, float pitch, float px, float py, float pz) {
   (void)yaw; (void)pitch; (void)px; (void)py; (void)pz;
   g_batch_quads = 0;
 #ifdef VITA
-  glClearColor(0.02f, 0.02f, 0.05f, 1.0f);
+  // Clear BLU ogni frame: distingue "present ok" (blu) da "swap rotto" (nero).
+  glClearColor(0.1f, 0.2f, 0.8f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glUseProgram(g_prog);
-  // TODO: u_mvp da yaw/pitch/pos (16 float calcolati in CPU, costo ~0).
-  // Lo shader fa il resto: nessun pixel tocca la CPU.
+  // Fixed pipeline: proiezione ortho clip-space, modelview identity.
+  // I vertici mappa sono già in [-1,1], arrivano dritti al raster SGX.
+  glMatrixMode(0x1701 /*PROJECTION*/);
+  glLoadIdentity();
+  glMatrixMode(0x1700 /*MODELVIEW*/);
+  glLoadIdentity();
 #endif
 }
 
@@ -162,15 +153,18 @@ void dnf_gpu_draw_wall_quad(const DnfGpuVertex *v0, const DnfGpuVertex *v1,
 void dnf_gpu_draw_queued(void) {
   if (g_batch_quads == 0) return;
 #ifdef VITA
+  // M0.1: fixed-function, niente shader/attributi custom.
+  // Posizioni (x,y,z) + UV interlacciati in g_batch: li passiamo con
+  // client-state pointer, il fill resta 100% SGX.
   glBindTexture(GL_TEXTURE_2D, (GLuint)g_batch_tex);
-  // Upload vertici una volta per batch; il fill è tutto SGX.
-  glVertexAttribPointer(0, 3, 0x1406 /*FLOAT*/, 0, sizeof(DnfGpuVertex), &g_batch[0].x);
-  glVertexAttribPointer(1, 2, 0x1406, 0, sizeof(DnfGpuVertex), &g_batch[0].u);
-  glVertexAttribPointer(2, 1, 0x1406, 0, sizeof(DnfGpuVertex), &g_batch[0].light);
-  glEnableVertexAttribArray(0);
-  glEnableVertexAttribArray(1);
-  glEnableVertexAttribArray(2);
+  glEnableClientState(0x8074 /*VERTEX_ARRAY*/);
+  glEnableClientState(0x8078 /*TEXTURE_COORD_ARRAY*/);
+  glVertexPointer(3, 0x1406 /*FLOAT*/, sizeof(DnfGpuVertex), &g_batch[0].x);
+  glTexCoordPointer(2, 0x1406 /*FLOAT*/, sizeof(DnfGpuVertex), &g_batch[0].u);
+  glColor3f(1.0f, 1.0f, 1.0f);
   glDrawArrays(GL_TRIANGLES, 0, g_batch_quads * 6);
+  glDisableClientState(0x8078);
+  glDisableClientState(0x8074);
 #endif
   g_batch_quads = 0;
 }

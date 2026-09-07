@@ -40,9 +40,20 @@ int main(void) {
   DnfMap map;
   dnf_map_load(DNF_MAP_PATH, &map);
 
+  // Log diagnostico: ci dice se il loop emette davvero quad GPU.
+  SceUID logfd = -1;
+  {
+    // sceIoOpen senza include extra: path ux0 scrivibile.
+    extern int sceIoOpen(const char *, int, int);
+    extern int sceIoWrite(SceUID, const void *, int);
+    logfd = sceIoOpen(DNF_DATA_DIR "/gpu_log.txt", 0x601 /*WR|CRE|TRUNC*/, 0777);
+    (void)sceIoWrite;
+  }
+
   SceCtrlData pad, old = {0};
   sceCtrlPeekBufferPositive(0, &old, 1);
   float yaw = 0.0f, px = 0, py = 0;
+  int frame = 0;
 
   while (1) {
     sceCtrlPeekBufferPositive(0, &pad, 1);
@@ -55,9 +66,28 @@ int main(void) {
 
     // Frame 100% GPU: clear+draw in VRAM, present vsyncato.
     dnf_gpu_begin_frame(yaw, 0, px, py, 0);
+    // M0.1 debug: triangolo fullscreen (rosso su fondo blu) prima dei muri.
+    // Se vedi rosso/blu la GPU disegna; se resta nero il problema è lo swap.
+    {
+      DnfGpuVertex t0 = {-0.9f, -0.9f, 0, 0, 0, 1};
+      DnfGpuVertex t1 = { 0.9f, -0.9f, 0, 1, 0, 1};
+      DnfGpuVertex t2 = { 0.0f,  0.9f, 0, 0.5f, 1, 1};
+      DnfGpuVertex t3 = { 0.0f,  0.9f, 0, 0.5f, 1, 1};
+      dnf_gpu_draw_wall_quad(&t0, &t1, &t2, &t3, map.white_tex);
+    }
     dnf_map_draw_gpu(&map, yaw);
     (void)has_grp;
     dnf_gpu_end_frame();
+
+    if (logfd >= 0 && (frame % 60) == 0) {
+      extern int sceIoWrite(SceUID, const void *, int);
+      char line[128];
+      int n = snprintf(line, sizeof(line),
+        "frame=%d grp=%d walls=%d whitetex=%u yaw=%.2f\n",
+        frame, has_grp, map.num_walls, (unsigned)map.white_tex, yaw);
+      if (n > 0) sceIoWrite(logfd, line, n);
+    }
+    frame++;
   }
 
   dnf_gpu_shutdown();
