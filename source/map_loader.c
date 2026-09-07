@@ -45,17 +45,19 @@ int dnf_map_load(const char *map_path, DnfMap *out) {
 
 void dnf_map_draw_gpu(const DnfMap *m, float yaw) {
   (void)yaw;
-  // Emissione quad pareti: coordinate mondo -> shader (MVP applicata in GPU).
-  // Costo CPU: ~6 struct copy per muro. Raster: 100% SGX.
+  // M0.2: stanza dimezzata (scala 0.45) così resta bordo blu visibile.
+  // Muri a profondità diverse (-0.2..+0.5) per dare parallasse col yaw.
+  // Colori solidi (texture OFF nel renderer): niente più schermo bianco.
   for (int i = 0; i < m->num_walls; i++) {
     const DnfWall *w = &m->walls[i];
     const DnfWall *w2 = &m->walls[w->point2 % (m->num_walls ? m->num_walls : 1)];
-    float x0 = (float)w->x / 512.0f, y0 = (float)w->y / 512.0f;
-    float x1 = (float)w2->x / 512.0f, y1 = (float)w2->y / 512.0f;
-    DnfGpuVertex v0 = {x0, -1.0f, y0, 0, 0, 1.0f};
-    DnfGpuVertex v1 = {x1, -1.0f, y1, 1, 0, 1.0f};
-    DnfGpuVertex v2 = {x1,  1.0f, y1, 1, 1, 1.0f};
-    DnfGpuVertex v3 = {x0,  1.0f, y0, 0, 1, 1.0f};
+    float x0 = (float)w->x / 512.0f * 0.45f, y0 = (float)w->y / 512.0f * 0.45f;
+    float x1 = (float)w2->x / 512.0f * 0.45f, y1 = (float)w2->y / 512.0f * 0.45f;
+    float z = -0.2f + 0.15f * (float)i; // ogni muro più "dentro"
+    DnfGpuVertex v0 = {x0, -0.45f, z + y0 * 0.2f, 0, 0, 1.0f};
+    DnfGpuVertex v1 = {x1, -0.45f, z + y1 * 0.2f, 1, 0, 1.0f};
+    DnfGpuVertex v2 = {x1,  0.45f, z + y1 * 0.2f, 1, 1, 1.0f};
+    DnfGpuVertex v3 = {x0,  0.45f, z + y0 * 0.2f, 0, 1, 1.0f};
     dnf_gpu_draw_wall_quad(&v0, &v1, &v2, &v3, m->white_tex);
   }
 }

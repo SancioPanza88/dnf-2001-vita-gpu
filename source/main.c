@@ -66,15 +66,17 @@ int main(void) {
 
     // Frame 100% GPU: clear+draw in VRAM, present vsyncato.
     dnf_gpu_begin_frame(yaw, 0, px, py, 0);
-    // M0.1 debug: triangolo fullscreen (rosso su fondo blu) prima dei muri.
-    // Se vedi rosso/blu la GPU disegna; se resta nero il problema è lo swap.
-    {
-      DnfGpuVertex t0 = {-0.9f, -0.9f, 0, 0, 0, 1};
-      DnfGpuVertex t1 = { 0.9f, -0.9f, 0, 1, 0, 1};
-      DnfGpuVertex t2 = { 0.0f,  0.9f, 0, 0.5f, 1, 1};
-      DnfGpuVertex t3 = { 0.0f,  0.9f, 0, 0.5f, 1, 1};
-      dnf_gpu_draw_wall_quad(&t0, &t1, &t2, &t3, map.white_tex);
-    }
+    // M0.2: triangolo ROSSO in immediate mode (texture off) + stanza VERDE.
+    // Atteso: fondo blu, triangolo rosso davanti, stanza verde al centro.
+#ifdef VITA
+    glDisable(0x0DE1 /*TEXTURE_2D*/);
+    glColor3f(1.0f, 0.0f, 0.0f);
+    glBegin(0x0004 /*TRIANGLES*/);
+    glVertex3f(-0.9f + px * 0.1f, -0.9f, -0.5f);
+    glVertex3f( 0.9f + px * 0.1f, -0.9f, -0.5f);
+    glVertex3f( 0.0f + px * 0.1f,  0.9f, -0.5f);
+    glEnd();
+#endif
     dnf_map_draw_gpu(&map, yaw);
     (void)has_grp;
     dnf_gpu_end_frame();

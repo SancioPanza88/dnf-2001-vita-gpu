@@ -153,17 +153,13 @@ void dnf_gpu_draw_wall_quad(const DnfGpuVertex *v0, const DnfGpuVertex *v1,
 void dnf_gpu_draw_queued(void) {
   if (g_batch_quads == 0) return;
 #ifdef VITA
-  // M0.1: fixed-function, niente shader/attributi custom.
-  // Posizioni (x,y,z) + UV interlacciati in g_batch: li passiamo con
-  // client-state pointer, il fill resta 100% SGX.
-  glBindTexture(GL_TEXTURE_2D, (GLuint)g_batch_tex);
+  // M0.2: colori solidi, texture OFF — il bianco fisso era overdraw
+  // di quad texturizzati bianchi a tutto schermo.
+  glDisable(0x0DE1 /*TEXTURE_2D*/);
+  glColor3f(0.0f, 1.0f, 0.0f); // muri VERDI su fondo blu
   glEnableClientState(0x8074 /*VERTEX_ARRAY*/);
-  glEnableClientState(0x8078 /*TEXTURE_COORD_ARRAY*/);
   glVertexPointer(3, 0x1406 /*FLOAT*/, sizeof(DnfGpuVertex), &g_batch[0].x);
-  glTexCoordPointer(2, 0x1406 /*FLOAT*/, sizeof(DnfGpuVertex), &g_batch[0].u);
-  glColor3f(1.0f, 1.0f, 1.0f);
   glDrawArrays(GL_TRIANGLES, 0, g_batch_quads * 6);
-  glDisableClientState(0x8078);
   glDisableClientState(0x8074);
 #endif
   g_batch_quads = 0;
