@@ -21,6 +21,7 @@ add_executable(${PROJECT_NAME}
   source/gpu_renderer.c
   source/grp_loader.c
   source/map_loader.c
+  source/art_loader.c
 )
 
 target_link_libraries(${PROJECT_NAME}

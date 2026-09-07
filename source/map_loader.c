@@ -1,6 +1,8 @@
 // Parser .MAP minimale + emissore quad GPU.
 #include "map_loader.h"
+#include "art_loader.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
@@ -35,24 +37,31 @@ int dnf_map_load(const char *map_path, DnfMap *out) {
     }
     out->num_walls = 4;
   }
-  // M1: checkerboard 64x64 in VRAM (come i sample texture).
-  // Texture vera ART da DNF.GRP in M1b; intanto valida il path texturizzato.
+  // M1b: texture muraria reale da DNF.GRP (tile ART + palette),
+  // fallback checker se i dati mancano. Upload UNA volta in VRAM.
   {
-    static uint8_t checker[64 * 64 * 4];
-    for (int y = 0; y < 64; y++) {
-      for (int x = 0; x < 64; x++) {
-        int c = (((x / 8) + (y / 8)) & 1) ? 200 : 90;
-        int edge = (x < 2 || y < 2) ? 1 : 0;
-        uint8_t r = edge ? 255 : (uint8_t)c;
-        uint8_t g = edge ? 128 : (uint8_t)(c * 0.6f);
-        uint8_t b = edge ? 0 : (uint8_t)(c * 0.3f);
-        checker[(y * 64 + x) * 4 + 0] = r;
-        checker[(y * 64 + x) * 4 + 1] = g;
-        checker[(y * 64 + x) * 4 + 2] = b;
-        checker[(y * 64 + x) * 4 + 3] = 255;
+    int tw = 0, th = 0;
+    uint8_t *rgba = NULL;
+    if (dnf_art_load_wall_rgba("ux0:data/DNF/DNF.GRP", &tw, &th, &rgba) == 0) {
+      out->white_tex = dnf_gpu_upload_texture_rgba(tw, th, rgba);
+      free(rgba);
+    } else {
+      static uint8_t checker[64 * 64 * 4];
+      for (int y = 0; y < 64; y++) {
+        for (int x = 0; x < 64; x++) {
+          int c = (((x / 8) + (y / 8)) & 1) ? 200 : 90;
+          int edge = (x < 2 || y < 2) ? 1 : 0;
+          uint8_t r = edge ? 255 : (uint8_t)c;
+          uint8_t g = edge ? 128 : (uint8_t)(c * 0.6f);
+          uint8_t b = edge ? 0 : (uint8_t)(c * 0.3f);
+          checker[(y * 64 + x) * 4 + 0] = r;
+          checker[(y * 64 + x) * 4 + 1] = g;
+          checker[(y * 64 + x) * 4 + 2] = b;
+          checker[(y * 64 + x) * 4 + 3] = 255;
+        }
       }
+      out->white_tex = dnf_gpu_upload_texture_rgba(64, 64, checker);
     }
-    out->white_tex = dnf_gpu_upload_texture_rgba(64, 64, checker);
   }
   return 0;
 }
