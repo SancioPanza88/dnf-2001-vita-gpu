@@ -36,6 +36,7 @@ void dnf_gpu_debug_triangle(float dx); // triangolo rosso immediate mode (M0.2)
 void dnf_gpu_set_camera(float yaw, float px, float py); // M1: prospettiva+vista
 void dnf_gpu_end_frame(void);       // vglSwapBuffers (vsync GPU)
 uint32_t dnf_gpu_upload_texture_rgba(int w, int h, const void *rgba);
+void dnf_gpu_free_texture(uint32_t tex_id); // M1d: libera texture scartate
 uint32_t dnf_gpu_upload_texture_p8(int w, int h, const uint8_t *indices);
 void dnf_gpu_upload_palette(const uint8_t pal[256 * 3]);
 int  dnf_gpu_tex_count(void);

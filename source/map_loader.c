@@ -66,6 +66,10 @@ int dnf_map_load(const char *map_path, DnfMap *out) {
   return 0;
 }
 
+void dnf_map_set_texture(DnfMap *m, uint32_t tex) {
+  m->white_tex = tex;
+}
+
 void dnf_map_draw_gpu(const DnfMap *m, float yaw) {
   (void)yaw;
   // M1: stanza world-space 8x8, altezza 0..3, camera a y=1.5.

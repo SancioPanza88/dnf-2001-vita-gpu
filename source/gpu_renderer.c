@@ -242,3 +242,14 @@ void dnf_gpu_upload_palette(const uint8_t pal[256 * 3]) {
 }
 
 int dnf_gpu_tex_count(void) { return g_tex_count; }
+
+void dnf_gpu_free_texture(uint32_t tex_id) {
+#ifdef VITA
+  if (tex_id) {
+    GLuint t = (GLuint)tex_id;
+    glDeleteTextures(1, &t);
+  }
+#else
+  (void)tex_id;
+#endif
+}

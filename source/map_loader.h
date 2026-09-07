@@ -29,6 +29,8 @@ typedef struct {
 int dnf_map_load(const char *map_path, DnfMap *out);
 // Disegna muri visibili come quad GPU (batching interno al renderer).
 void dnf_map_draw_gpu(const DnfMap *m, float yaw);
+// M1d: sostituisce la texture dei muri (scorrimento tile con L1/R1).
+void dnf_map_set_texture(DnfMap *m, uint32_t tex);
 
 #ifdef __cplusplus
 }

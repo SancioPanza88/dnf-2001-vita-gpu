@@ -16,6 +16,14 @@ extern "C" {
 int dnf_art_load_wall_rgba(const char *grp_path,
                            int *out_w, int *out_h, uint8_t **out_rgba);
 
+// M1d: lista tile murari candidati (32..128px) per scorrimento con L1/R1.
+// Ritorna numero candidati (0 = niente ART). load_choice carica il pos-esimo.
+int dnf_art_wall_choices(const char *grp_path);
+int dnf_art_load_wall_choice(const char *grp_path, int pos,
+                             int flip_v,
+                             int *out_tile, int *out_w, int *out_h,
+                             uint8_t **out_rgba);
+
 #ifdef __cplusplus
 }
 #endif

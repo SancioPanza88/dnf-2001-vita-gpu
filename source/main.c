@@ -11,6 +11,7 @@
 #include "gpu_renderer.h"
 #include "grp_loader.h"
 #include "map_loader.h"
+#include "art_loader.h"
 
 #define DNF_DATA_DIR "ux0:data/DNF"
 #define DNF_GRP_PATH DNF_DATA_DIR "/DNF.GRP"
@@ -43,6 +44,9 @@ int main(void) {
   sceCtrlPeekBufferPositive(0, &old, 1);
   float yaw = 0.0f, px = 0, py = 0;
   int frame = 0;
+  // M1d: scorrimento tile murari (L1/R1) + flip verticale (TRIANGOLO).
+  int wall_pos = 0, flip_v = 0;
+  int nchoices = has_grp ? dnf_art_wall_choices(DNF_GRP_PATH) : 0;
 
   while (1) {
     sceCtrlPeekBufferPositive(0, &pad, 1);
@@ -63,6 +67,30 @@ int main(void) {
     // Resta nella stanza 8x8.
     if (px < -3.2f) px = -3.2f; if (px > 3.2f) px = 3.2f;
     if (py < -3.2f) py = -3.2f; if (py > 3.2f) py = 3.2f;
+    // M1d: L1/R1 = tile precedente/successivo, TRIANGOLO = flip V.
+    // Solo su pressione (fronte), ricarica una texture: niente costo per-frame.
+    {
+      unsigned pressed = pad.buttons & ~old.buttons;
+      int want = -1;
+      if ((pressed & 0x100) && nchoices > 0) { // L1
+        wall_pos = (wall_pos + nchoices - 1) % nchoices; want = wall_pos;
+      } else if ((pressed & 0x200) && nchoices > 0) { // R1
+        wall_pos = (wall_pos + 1) % nchoices; want = wall_pos;
+      } else if ((pressed & 0x1000) && nchoices > 0) { // TRIANGOLO
+        flip_v = !flip_v; want = wall_pos;
+      }
+      if (want >= 0) {
+        int tw = 0, th = 0, tile = -1;
+        uint8_t *rgba = NULL;
+        if (dnf_art_load_wall_choice(DNF_GRP_PATH, want, flip_v,
+                                     &tile, &tw, &th, &rgba) == 0) {
+          uint32_t nt = dnf_gpu_upload_texture_rgba(tw, th, rgba);
+          free(rgba);
+          dnf_gpu_free_texture(map.white_tex);
+          dnf_map_set_texture(&map, nt);
+        }
+      }
+    }
     old = pad;
 
     // Frame 100% GPU: prospettiva + muri/pavimento texturizzati in VRAM.
