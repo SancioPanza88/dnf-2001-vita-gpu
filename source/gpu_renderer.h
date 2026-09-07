@@ -32,6 +32,7 @@ void dnf_gpu_draw_wall_quad(const DnfGpuVertex *v0, const DnfGpuVertex *v1,
                             const DnfGpuVertex *v2, const DnfGpuVertex *v3,
                             uint32_t tex_id);
 void dnf_gpu_draw_queued(void);     // flush batch -> singolo glDrawArrays
+void dnf_gpu_debug_triangle(float dx); // triangolo rosso immediate mode (M0.2)
 void dnf_gpu_end_frame(void);       // vglSwapBuffers (vsync GPU)
 uint32_t dnf_gpu_upload_texture_rgba(int w, int h, const void *rgba);
 uint32_t dnf_gpu_upload_texture_p8(int w, int h, const uint8_t *indices);

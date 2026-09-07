@@ -150,6 +150,20 @@ void dnf_gpu_draw_wall_quad(const DnfGpuVertex *v0, const DnfGpuVertex *v1,
   g_batch_quads++;
 }
 
+void dnf_gpu_debug_triangle(float dx) {
+#ifdef VITA
+  glDisable(0x0DE1 /*TEXTURE_2D*/);
+  glColor3f(1.0f, 0.0f, 0.0f);
+  glBegin(0x0004 /*TRIANGLES*/);
+  glVertex3f(-0.9f + dx, -0.9f, -0.5f);
+  glVertex3f( 0.9f + dx, -0.9f, -0.5f);
+  glVertex3f( 0.0f + dx,  0.9f, -0.5f);
+  glEnd();
+#else
+  (void)dx;
+#endif
+}
+
 void dnf_gpu_draw_queued(void) {
   if (g_batch_quads == 0) return;
 #ifdef VITA

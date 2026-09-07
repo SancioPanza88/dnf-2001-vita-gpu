@@ -68,15 +68,7 @@ int main(void) {
     dnf_gpu_begin_frame(yaw, 0, px, py, 0);
     // M0.2: triangolo ROSSO in immediate mode (texture off) + stanza VERDE.
     // Atteso: fondo blu, triangolo rosso davanti, stanza verde al centro.
-#ifdef VITA
-    glDisable(0x0DE1 /*TEXTURE_2D*/);
-    glColor3f(1.0f, 0.0f, 0.0f);
-    glBegin(0x0004 /*TRIANGLES*/);
-    glVertex3f(-0.9f + px * 0.1f, -0.9f, -0.5f);
-    glVertex3f( 0.9f + px * 0.1f, -0.9f, -0.5f);
-    glVertex3f( 0.0f + px * 0.1f,  0.9f, -0.5f);
-    glEnd();
-#endif
+    dnf_gpu_debug_triangle(px * 0.1f);
     dnf_map_draw_gpu(&map, yaw);
     (void)has_grp;
     dnf_gpu_end_frame();
