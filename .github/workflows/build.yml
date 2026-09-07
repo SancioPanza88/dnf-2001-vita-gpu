@@ -22,7 +22,7 @@ jobs:
           apt-get update && apt-get install -y cmake subversion pkg-config p7zip-full
           export VITASDK=/usr/local/vitasdk
           export PATH="$VITASDK/bin:$PATH"
-          for p in vitaGL vitaShaRK; do
+          for p in vitaGL vitaShaRK mathneon taihen; do
             echo "== vdpm $p =="; vdpm "$p" || echo "WARN $p failed";
           done
 

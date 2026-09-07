@@ -25,12 +25,20 @@ add_executable(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
   vitaGL
+  vitashark
+  mathneon
+  SceShaccCgExt
+  SceShaccCg_stub
+  taihen_stub
+  SceKernelDmacMgr_stub
+  SceAppMgr_stub
   SceGxm_stub
   SceDisplay_stub
   SceCtrl_stub
   ScePower_stub
   SceAudio_stub
   SceCommonDialog_stub
+  stdc++
   m
   c
 )
