@@ -46,17 +46,27 @@ int main(void) {
   while (1) {
     sceCtrlPeekBufferPositive(0, &pad, 1);
     if (pad.buttons & 0x8000 /*START*/ && !(old.buttons & 0x8000)) break;
-    float rx = ((int)pad.lx - 128) / 128.0f;
-    float mx = ((int)pad.ly - 128) / 128.0f;
-    if (rx > 0.15f || rx < -0.15f) yaw += rx * 0.05f;
-    if (mx > 0.15f || mx < -0.15f) { px += (float)cos(yaw) * mx * 0.05f; py += (float)sin(yaw) * mx * 0.05f; }
+    // M1: sinistro = muovi (avanti/strafe), destro X = gira.
+    float fwd = ((int)pad.ly - 128) / 128.0f;
+    float str = ((int)pad.lx - 128) / 128.0f;
+    float turn = ((int)pad.rx - 128) / 128.0f;
+    if (turn > 0.15f || turn < -0.15f) yaw += turn * 0.06f;
+    if (fwd > 0.15f || fwd < -0.15f) {
+      px += (float)cos(yaw) * -fwd * 0.08f;
+      py += (float)sin(yaw) * -fwd * 0.08f;
+    }
+    if (str > 0.15f || str < -0.15f) {
+      px += (float)cos(yaw + 1.5708f) * str * 0.08f;
+      py += (float)sin(yaw + 1.5708f) * str * 0.08f;
+    }
+    // Resta nella stanza 8x8.
+    if (px < -3.2f) px = -3.2f; if (px > 3.2f) px = 3.2f;
+    if (py < -3.2f) py = -3.2f; if (py > 3.2f) py = 3.2f;
     old = pad;
 
-    // Frame 100% GPU: clear+draw in VRAM, present vsyncato.
+    // Frame 100% GPU: prospettiva + muri/pavimento texturizzati in VRAM.
+    dnf_gpu_set_camera(yaw, px, py);
     dnf_gpu_begin_frame(yaw, 0, px, py, 0);
-    // M0.2: triangolo ROSSO in immediate mode (texture off) + stanza VERDE.
-    // Atteso: fondo blu, triangolo rosso davanti, stanza verde al centro.
-    dnf_gpu_debug_triangle(px * 0.1f);
     dnf_map_draw_gpu(&map, yaw);
     (void)has_grp;
     dnf_gpu_end_frame();

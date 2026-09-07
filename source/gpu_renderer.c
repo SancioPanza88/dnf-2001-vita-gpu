@@ -116,18 +116,26 @@ void dnf_gpu_shutdown(void) {
 }
 
 void dnf_gpu_begin_frame(float yaw, float pitch, float px, float py, float pz) {
-  (void)yaw; (void)pitch; (void)px; (void)py; (void)pz;
+  (void)pitch; (void)pz;
   g_batch_quads = 0;
 #ifdef VITA
-  glClearColor(0.1f, 0.2f, 0.8f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
-  // Stessa ortho dei sample, ogni frame (vitaGL la resetta sullo swap).
+  // M1: prospettiva reale 75° + camera FPS. Niente più ortho 2D.
+  glClearColor(0.05f, 0.05f, 0.12f, 1.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glEnable(GL_DEPTH_TEST);
+  glEnable(GL_TEXTURE_2D);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  glOrtho(0, DNF_FB_W, DNF_FB_H, 0, -1, 1);
+  gluPerspective(75.0f, (float)DNF_FB_W / (float)DNF_FB_H, 0.1f, 100.0f);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
-  glDisable(GL_TEXTURE_2D);
+  {
+    float cx = px + cosf(yaw) * 5.0f;
+    float cz = py + sinf(yaw) * 5.0f;
+    gluLookAt(px, 1.5f, py, cx, 1.5f, cz, 0.0f, 1.0f, 0.0f);
+  }
+#else
+  (void)yaw; (void)px; (void)py;
 #endif
 }
 
@@ -145,41 +153,33 @@ void dnf_gpu_draw_wall_quad(const DnfGpuVertex *v0, const DnfGpuVertex *v1,
   g_batch_quads++;
 }
 
+// M1: camera cached (solo 3 float in CPU), matrici calcolate in GPU via glu*.
+static float g_cam_yaw = 0, g_cam_px = 0, g_cam_py = 0;
+
+void dnf_gpu_set_camera(float yaw, float px, float py) {
+  g_cam_yaw = yaw; g_cam_px = px; g_cam_py = py;
+}
+
 void dnf_gpu_debug_triangle(float dx) {
-#ifdef VITA
-  // Coordinate pixel come il sample immediate_mode (niente clip-space).
-  glDisable(GL_TEXTURE_2D);
-  glBegin(GL_TRIANGLES);
-  glColor3f(1.0f, 0.0f, 0.0f);
-  glVertex3f(400 + dx, 100, 0);
-  glVertex3f(800 + dx, 100, 0);
-  glVertex3f(600 + dx, 400, 0);
-  glEnd();
-#else
+  // M1: debug disattivato in prospettiva (scena reale texturizzata).
   (void)dx;
-#endif
 }
 
 void dnf_gpu_draw_queued(void) {
   if (g_batch_quads == 0) return;
 #ifdef VITA
-  // M0.3: muri come quad VERDE in pixel-coords (come il sample), niente
-  // texture, niente vertex-array client: solo immediate mode sicuro.
-  glDisable(GL_TEXTURE_2D);
-  glColor3f(0.0f, 1.0f, 0.0f);
+  // M1: muri TEXTURIZZATI in world-space con prospettiva.
+  // UV dal batch, 1 texture per flush. Raster e depth 100% SGX.
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D, (GLuint)g_batch_tex);
+  glColor3f(1.0f, 1.0f, 1.0f);
   glBegin(GL_QUADS);
   for (int q = 0; q < g_batch_quads; q++) {
-    // Ogni quad occupa 6 vertici (2 triangoli): riuso i 4 angoli.
     DnfGpuVertex *b = &g_batch[q * 6];
-    // Mappa clip [-0.45,0.45] -> pixel schermo.
-    float px0 = (b[0].x * 0.5f + 0.5f) * DNF_FB_W;
-    float py0 = (b[0].y * 0.5f + 0.5f) * DNF_FB_H;
-    float px1 = (b[1].x * 0.5f + 0.5f) * DNF_FB_W;
-    float py1 = (b[2].y * 0.5f + 0.5f) * DNF_FB_H;
-    glVertex3f(px0, (DNF_FB_H - py0), 0);
-    glVertex3f(px1, (DNF_FB_H - py0), 0);
-    glVertex3f(px1, (DNF_FB_H - py1), 0);
-    glVertex3f(px0, (DNF_FB_H - py1), 0);
+    glTexCoord2f(b[0].u, b[0].v); glVertex3f(b[0].x, b[0].y, b[0].z);
+    glTexCoord2f(b[1].u, b[1].v); glVertex3f(b[1].x, b[1].y, b[1].z);
+    glTexCoord2f(b[2].u, b[2].v); glVertex3f(b[2].x, b[2].y, b[2].z);
+    glTexCoord2f(b[5].u, b[5].v); glVertex3f(b[5].x, b[5].y, b[5].z);
   }
   glEnd();
 #endif
