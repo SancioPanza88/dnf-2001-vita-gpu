@@ -31,11 +31,12 @@ int main(void) {
   dnf_gpu_init(); // niente log file, niente palette: solo GPU (come i sample)
   sceCtrlSetSamplingMode(1); // analogici
 
-  // Dati DNF (best-effort): se assenti parte la stanza demo GPU.
-  DnfGrpIndex idx; memset(&idx, 0, sizeof(idx));
+  // M1c: indice GRP (~96KB) + mappa (~90KB) in statica —
+  // come locali sforavano lo stack del main thread (C2-12828-1).
+  static DnfGrpIndex idx; memset(&idx, 0, sizeof(idx));
   int has_grp = (dnf_grp_index(DNF_GRP_PATH, &idx) == 0) ? 1 : 0;
 
-  DnfMap map;
+  static DnfMap map;
   dnf_map_load(DNF_MAP_PATH, &map);
 
   SceCtrlData pad, old = {0};

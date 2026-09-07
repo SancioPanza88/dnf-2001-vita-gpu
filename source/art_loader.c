@@ -27,7 +27,9 @@ int dnf_art_load_wall_rgba(const char *grp_path,
                            int *out_w, int *out_h, uint8_t **out_rgba) {
   *out_w = 0; *out_h = 0; *out_rgba = NULL;
 
-  DnfGrpIndex idx;
+  // M1c: indice in statica (96KB) — sullo stack overflowava il main thread.
+  static DnfGrpIndex idx;
+  memset(&idx, 0, sizeof(idx));
   if (dnf_grp_index(grp_path, &idx) != 0) return -1;
 
   // 1. Palette 0 (primi 768 byte di PALETTE.DAT).
