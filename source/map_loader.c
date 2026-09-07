@@ -35,11 +35,8 @@ int dnf_map_load(const char *map_path, DnfMap *out) {
     }
     out->num_walls = 4;
   }
-  // Texture bianca 2x2 in VRAM (muri untextured / fallback).
-  static const uint8_t white[2*2*4] = {
-    255,255,255,255, 255,255,255,255,
-    255,255,255,255, 255,255,255,255 };
-  out->white_tex = dnf_gpu_upload_texture_rgba(2, 2, white);
+  // M0.3: niente texture GL (solo colori solidi) — white_tex dummy.
+  out->white_tex = 1;
   return 0;
 }
 

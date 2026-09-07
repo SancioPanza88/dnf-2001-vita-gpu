@@ -28,10 +28,8 @@ static void build_default_palette(void) {
 }
 
 int main(void) {
+  dnf_gpu_init(); // niente log file, niente palette: solo GPU (come i sample)
   sceCtrlSetSamplingMode(1); // analogici
-  dnf_gpu_init();
-  build_default_palette();
-  dnf_gpu_upload_palette(s_default_pal);
 
   // Dati DNF (best-effort): se assenti parte la stanza demo GPU.
   DnfGrpIndex idx; memset(&idx, 0, sizeof(idx));
@@ -39,16 +37,6 @@ int main(void) {
 
   DnfMap map;
   dnf_map_load(DNF_MAP_PATH, &map);
-
-  // Log diagnostico: ci dice se il loop emette davvero quad GPU.
-  SceUID logfd = -1;
-  {
-    // sceIoOpen senza include extra: path ux0 scrivibile.
-    extern int sceIoOpen(const char *, int, int);
-    extern int sceIoWrite(SceUID, const void *, int);
-    logfd = sceIoOpen(DNF_DATA_DIR "/gpu_log.txt", 0x601 /*WR|CRE|TRUNC*/, 0777);
-    (void)sceIoWrite;
-  }
 
   SceCtrlData pad, old = {0};
   sceCtrlPeekBufferPositive(0, &old, 1);
@@ -72,15 +60,6 @@ int main(void) {
     dnf_map_draw_gpu(&map, yaw);
     (void)has_grp;
     dnf_gpu_end_frame();
-
-    if (logfd >= 0 && (frame % 60) == 0) {
-      extern int sceIoWrite(SceUID, const void *, int);
-      char line[128];
-      int n = snprintf(line, sizeof(line),
-        "frame=%d grp=%d walls=%d whitetex=%u yaw=%.2f\n",
-        frame, has_grp, map.num_walls, (unsigned)map.white_tex, yaw);
-      if (n > 0) sceIoWrite(logfd, line, n);
-    }
     frame++;
   }
 

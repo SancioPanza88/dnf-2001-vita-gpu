@@ -91,24 +91,19 @@ static GLuint compile_shader(GLenum type, const char *src) {
 #endif
 
 int dnf_gpu_init(void) {
-  // Clock GPU al max stock: il raster ora è GPU-bound, non CPU-bound.
-  scePowerSetArmClockFrequency(444);
-  scePowerSetBusClockFrequency(222);
-  scePowerSetGpuClockFrequency(222);
-  scePowerSetGpuXbarClockFrequency(166);
-
 #ifdef VITA
-  // M0.1: fixed-function pipeline (come i sample ufficiali vitaGL).
-  // Niente shader custom: lo shader P8/LUT torna in M1, prima proviamo
-  // che un triangolo arrivi al display.
-  vglInitExtended(0, DNF_FB_W, DNF_FB_H, 16 * 1024 * 1024, 0);
-  vglWaitVblankStart(1); // vsync GPU: present agganciato a 60Hz
-  glViewport(0, 0, DNF_FB_W, DNF_FB_H);
-  glDisable(0x0B71 /*DEPTH_TEST*/);
-  glDisable(0x0B44 /*CULL_FACE*/);
-  glDisable(0x0BE2 /*BLEND*/);
-  glEnable(0x0DE1 /*TEXTURE_2D*/);
+  // M0.3: identico ai sample ufficiali (immediate_mode): vglInit semplice,
+  // niente power/clock, niente threshold custom. Il crash C2-12828-1 era
+  // dopo il logo -> uno di quegli extra.
+  vglInit(0x800000);
   glClearColor(0.1f, 0.2f, 0.8f, 1.0f); // BLU: se vedi blu la GPU presenta
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, DNF_FB_W, DNF_FB_H, 0, -1, 1);
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  glDisable(GL_DEPTH_TEST);
+  glDisable(GL_CULL_FACE);
 #endif
   g_batch_quads = 0;
   return 0;
@@ -124,15 +119,15 @@ void dnf_gpu_begin_frame(float yaw, float pitch, float px, float py, float pz) {
   (void)yaw; (void)pitch; (void)px; (void)py; (void)pz;
   g_batch_quads = 0;
 #ifdef VITA
-  // Clear BLU ogni frame: distingue "present ok" (blu) da "swap rotto" (nero).
   glClearColor(0.1f, 0.2f, 0.8f, 1.0f);
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  // Fixed pipeline: proiezione ortho clip-space, modelview identity.
-  // I vertici mappa sono già in [-1,1], arrivano dritti al raster SGX.
-  glMatrixMode(0x1701 /*PROJECTION*/);
+  glClear(GL_COLOR_BUFFER_BIT);
+  // Stessa ortho dei sample, ogni frame (vitaGL la resetta sullo swap).
+  glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
-  glMatrixMode(0x1700 /*MODELVIEW*/);
+  glOrtho(0, DNF_FB_W, DNF_FB_H, 0, -1, 1);
+  glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+  glDisable(GL_TEXTURE_2D);
 #endif
 }
 
@@ -152,12 +147,13 @@ void dnf_gpu_draw_wall_quad(const DnfGpuVertex *v0, const DnfGpuVertex *v1,
 
 void dnf_gpu_debug_triangle(float dx) {
 #ifdef VITA
-  glDisable(0x0DE1 /*TEXTURE_2D*/);
+  // Coordinate pixel come il sample immediate_mode (niente clip-space).
+  glDisable(GL_TEXTURE_2D);
+  glBegin(GL_TRIANGLES);
   glColor3f(1.0f, 0.0f, 0.0f);
-  glBegin(0x0004 /*TRIANGLES*/);
-  glVertex3f(-0.9f + dx, -0.9f, -0.5f);
-  glVertex3f( 0.9f + dx, -0.9f, -0.5f);
-  glVertex3f( 0.0f + dx,  0.9f, -0.5f);
+  glVertex3f(400 + dx, 100, 0);
+  glVertex3f(800 + dx, 100, 0);
+  glVertex3f(600 + dx, 400, 0);
   glEnd();
 #else
   (void)dx;
@@ -167,14 +163,25 @@ void dnf_gpu_debug_triangle(float dx) {
 void dnf_gpu_draw_queued(void) {
   if (g_batch_quads == 0) return;
 #ifdef VITA
-  // M0.2: colori solidi, texture OFF — il bianco fisso era overdraw
-  // di quad texturizzati bianchi a tutto schermo.
-  glDisable(0x0DE1 /*TEXTURE_2D*/);
-  glColor3f(0.0f, 1.0f, 0.0f); // muri VERDI su fondo blu
-  glEnableClientState(0x8074 /*VERTEX_ARRAY*/);
-  glVertexPointer(3, 0x1406 /*FLOAT*/, sizeof(DnfGpuVertex), &g_batch[0].x);
-  glDrawArrays(GL_TRIANGLES, 0, g_batch_quads * 6);
-  glDisableClientState(0x8074);
+  // M0.3: muri come quad VERDE in pixel-coords (come il sample), niente
+  // texture, niente vertex-array client: solo immediate mode sicuro.
+  glDisable(GL_TEXTURE_2D);
+  glColor3f(0.0f, 1.0f, 0.0f);
+  glBegin(GL_QUADS);
+  for (int q = 0; q < g_batch_quads; q++) {
+    // Ogni quad occupa 6 vertici (2 triangoli): riuso i 4 angoli.
+    DnfGpuVertex *b = &g_batch[q * 6];
+    // Mappa clip [-0.45,0.45] -> pixel schermo.
+    float px0 = (b[0].x * 0.5f + 0.5f) * DNF_FB_W;
+    float py0 = (b[0].y * 0.5f + 0.5f) * DNF_FB_H;
+    float px1 = (b[1].x * 0.5f + 0.5f) * DNF_FB_W;
+    float py1 = (b[2].y * 0.5f + 0.5f) * DNF_FB_H;
+    glVertex3f(px0, (DNF_FB_H - py0), 0);
+    glVertex3f(px1, (DNF_FB_H - py0), 0);
+    glVertex3f(px1, (DNF_FB_H - py1), 0);
+    glVertex3f(px0, (DNF_FB_H - py1), 0);
+  }
+  glEnd();
 #endif
   g_batch_quads = 0;
 }
