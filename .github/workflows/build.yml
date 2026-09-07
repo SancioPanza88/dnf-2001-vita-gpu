@@ -1,0 +1,41 @@
+name: Build GPU VPK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    container:
+      image: vitasdk/vitasdk:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps (vitaGL)
+        run: |
+          apt-get update && apt-get install -y cmake subversion pkg-config p7zip-full
+          export VITASDK=/usr/local/vitasdk
+          export PATH="$VITASDK/bin:$PATH"
+          for p in vitaGL vitaShaRK; do
+            echo "== vdpm $p =="; vdpm "$p" || echo "WARN $p failed";
+          done
+
+      - name: Configure + build (GPU engine da zero)
+        run: |
+          export VITASDK=/usr/local/vitasdk
+          export PATH="$VITASDK/bin:$PATH"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j$(nproc)
+
+      - name: Upload VPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DNF2001_GPU-fresh
+          path: build/*.vpk
+          if-no-files-found: error

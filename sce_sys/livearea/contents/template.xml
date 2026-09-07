@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<livearea style="a1" format="xml" xmlns="http://www.vita.scea.ac.jp/livearea">
+  <livearea-background>
+    <image>bg.png</image>
+  </livearea-background>
+  <gate>
+    <startup-image>startup.png</startup-image>
+  </gate>
+</livearea>
